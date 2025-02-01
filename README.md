@@ -1,2 +1,3 @@
-# discord-selfbot-golang
-A Discord selfbot written in golang with the goal of learning the language.
+# discord-pinning-bot
+A Discord bot written in Golang to learn the language better.
+This program aims to let users "pin" as many messages as they wish, highlighting their favorite messages.
