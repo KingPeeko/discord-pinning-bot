@@ -1,4 +1,4 @@
-module Users/erikw/Documents/GitHub/Discordbot/selfbot
+module discord-pinning-bot
 
 go 1.23.4
 

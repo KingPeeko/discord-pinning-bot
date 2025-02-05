@@ -1,19 +1,55 @@
 package bot
 
 import (
-	"github.com/alfredosa/GoDiscordBot/config"
+	"fmt"
+	"log"
+	"os"
+	"os/signal"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-var botId string
-var botSession *discordgo.Session
+var BotToken string
 
-func startBot() {
-	botSession, err := discordgo.New("Bot " + config.Token)
+func Run() {
+	fmt.Println("Running with token: ", BotToken)
 
+	// Create new Discord Session
+	discord, err := discordgo.New("Bot " + BotToken)
 	if err != nil {
-		return
+		log.Fatal(err)
 	}
 
+	// Handler for all commands
+	discord.AddHandler(
+		func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
+				h(s, i)
+			}
+		},
+	)
+
+	// Open session
+	err = discord.Open()
+	if err != nil {
+		log.Fatalf("Cannot open the session: %v", err)
+	}
+
+	// Register commands
+	registeredCommands := make([]*discordgo.ApplicationCommand, len(commands))
+	for i, v := range commands {
+		cmd, err := discord.ApplicationCommandCreate(discord.State.User.ID, "", v)
+		if err != nil {
+			log.Panicf("Cannot create '%v' command: %v", v.Name, err)
+		}
+		registeredCommands[i] = cmd
+	}
+
+	defer discord.Close()
+
+	// Run until code is terminated
+	fmt.Println("Bot is running...")
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	<-c
 }
