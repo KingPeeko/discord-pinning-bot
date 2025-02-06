@@ -7,13 +7,16 @@ import (
 	"os/signal"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/jackc/pgx/v5"
 )
 
 var BotToken string
+var GuildID string
 
-func Run() {
+func Run(dbConn *pgx.Conn) {
+	conn = dbConn
+
 	fmt.Println("Running with token: ", BotToken)
-
 	// Create new Discord Session
 	discord, err := discordgo.New("Bot " + BotToken)
 	if err != nil {
@@ -23,8 +26,8 @@ func Run() {
 	// Handler for all commands
 	discord.AddHandler(
 		func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
-				h(s, i)
+			if handler, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
+				handler(s, i)
 			}
 		},
 	)
@@ -38,7 +41,7 @@ func Run() {
 	// Register commands
 	registeredCommands := make([]*discordgo.ApplicationCommand, len(commands))
 	for i, v := range commands {
-		cmd, err := discord.ApplicationCommandCreate(discord.State.User.ID, "", v)
+		cmd, err := discord.ApplicationCommandCreate(discord.State.User.ID, GuildID, v)
 		if err != nil {
 			log.Panicf("Cannot create '%v' command: %v", v.Name, err)
 		}
