@@ -30,19 +30,20 @@ var PinCommand = &discordgo.ApplicationCommand{
 }
 
 // Regex to check if link is a discord message link
-var messageLinkRegex = regexp.MustCompile(`^https?:\/\/(discord(app)?\.com)\/channels\/\d+\/\d+\/\d+$`)
 
 // Helper function to insert pins into the database
-func InsertPin(conn *pgx.Conn, link string, guild string, description string) (int64, error) {
+func InsertPin(conn *pgx.Conn, link string, guild string, description string, pinner string, date string) (int64, error) {
 	commandTag, err := conn.Exec(context.Background(),
-		"INSERT INTO pins (link, guild, description) VALUES ($1, $2, $3) ON CONFLICT (link) DO NOTHING",
-		link, guild, description)
+		"INSERT INTO pins (link, guild, description, pinner, date) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (link) DO NOTHING",
+		link, guild, description, pinner, date)
 	return commandTag.RowsAffected(), err
 }
 
 // Command handler
 func PinHandler(conn *pgx.Conn) func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		messageLinkRegex = regexp.MustCompile(`^https?:\/\/discord(?:app)?\.com\/channels\/\d+\/(\d+)\/(\d+)$`)
+
 		var messageLink, description string
 
 		for _, option := range i.ApplicationCommandData().Options {
@@ -68,8 +69,31 @@ func PinHandler(conn *pgx.Conn) func(s *discordgo.Session, i *discordgo.Interact
 		// Get the GuildID(Server ID)
 		guildID := i.GuildID
 
+		// Get pinner
+		pinner := i.Member.User.ID
+		// Get date of message
+		matches := messageLinkRegex.FindStringSubmatch(messageLink)
+		channelID := matches[1]
+		messageID := matches[2]
+
+		// Fetch the message from Discord
+		msg, err := s.ChannelMessage(channelID, messageID)
+		if err != nil {
+			log.Println("Failed to fetch message:", err)
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "❌ Invalid message link. Please provide a valid Discord message link.",
+					Flags:   discordgo.MessageFlagsEphemeral,
+				},
+			})
+			return
+		}
+
+		date := msg.Timestamp.Format("2006-01-02 15:04:05")
+
 		// Insert entry into database
-		affectedRows, err := InsertPin(conn, messageLink, guildID, description)
+		affectedRows, err := InsertPin(conn, messageLink, guildID, description, pinner, date)
 		if err != nil {
 			log.Println("Database insert error:", err)
 			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -97,7 +121,7 @@ func PinHandler(conn *pgx.Conn) func(s *discordgo.Session, i *discordgo.Interact
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: fmt.Sprintf("✅ Message pinned successfully!\n📌 **Link:** %s\n📝 **Description:** %s", messageLink, description),
+				Content: fmt.Sprintf("✅ Message pinned successfully! -> [%s](%s)", description, messageLink),
 			},
 		})
 	}
