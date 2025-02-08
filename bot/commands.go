@@ -12,6 +12,7 @@ var AllCommands = []*discordgo.ApplicationCommand{
 	commands.PinCommand,
 	commands.AllPinsCommand,
 	commands.RemovePinCommand,
+	commands.RandomPinCommand,
 }
 
 // Command handler mapping
@@ -20,5 +21,6 @@ func GetCommandHandlers(conn *pgx.Conn) map[string]func(s *discordgo.Session, i 
 		"pin":       commands.PinHandler(conn),
 		"allpins":   commands.AllPinsHandler(conn),
 		"removepin": commands.RemovePinHandler(conn),
+		"randompin": commands.RandomPinHandler(conn),
 	}
 }
