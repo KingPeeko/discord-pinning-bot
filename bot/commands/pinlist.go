@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"time"
 
+	"discord-pinning-bot/util"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/jackc/pgx/v5"
 )
@@ -105,34 +107,9 @@ func AllPinsHandler(conn *pgx.Conn) func(s *discordgo.Session, i *discordgo.Inte
 			}
 
 			// Create an embed with the message details
-			embed := &discordgo.MessageEmbed{
-				Title:       description,
-				Description: fmt.Sprintf("```%s```", msg.Content),
-				URL:         link,
-				Color:       0x5865F2,
-				Footer: &discordgo.MessageEmbedFooter{
-					Text: fmt.Sprintf("Pinned by %s", pinner),
-				},
-				Timestamp: msg.Timestamp.Format("2006-01-02T15:04:05Z"),
-				/*Thumbnail: &discordgo.MessageEmbedThumbnail{
-					URL: msg.Author.AvatarURL(""),
-				},
-				*/
-			}
-
-			// Attach author's avatar
-			if msg.Author != nil {
-				embed.Author = &discordgo.MessageEmbedAuthor{
-					Name:    msg.Author.Username,
-					IconURL: msg.Author.AvatarURL(""),
-				}
-			}
-
-			// Include image if message contains one
-			if len(msg.Attachments) > 0 {
-				embed.Image = &discordgo.MessageEmbedImage{
-					URL: msg.Attachments[0].URL,
-				}
+			embed, err := util.CreateEmbed(s, msg, link, description, pinner)
+			if err != nil {
+				continue
 			}
 
 			embeds = append(embeds, embed)

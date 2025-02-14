@@ -20,7 +20,7 @@ func selectRandomPin(conn *pgx.Conn, guildID string) ([3]string, error) {
 
 	err := conn.QueryRow(
 		context.Background(),
-		"SELECT link, description, pinner, date FROM pins WHERE guild = $1",
+		"SELECT link, description, pinner FROM pins WHERE guild = $1 ORDER BY RANDOM() LIMIT 1",
 		guildID,
 	).Scan(&link, &description, &pinner)
 	if err != nil {
@@ -83,20 +83,16 @@ func RandomPinHandler(conn *pgx.Conn) func(s *discordgo.Session, i *discordgo.In
 			return
 		}
 
+		embed, err := util.CreateEmbed(s, msg, link, description, pinner)
+		if err != nil {
+			util.NewInteractionRespond(s, i.Interaction, "Failed to retrieve a random pin :(", true)
+		}
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: "Random Pinned Message!",
-				Flags:   discordgo.MessageFlagsEphemeral,
+				Embeds:  []*discordgo.MessageEmbed{embed},
 			},
 		})
-
-		embed := util.CreateEmbed(msg, link, description, pinner)
-		_, err = s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
-			Embeds: []*discordgo.MessageEmbed{embed},
-		})
-		if err != nil {
-			log.Println("Sending embeds failed due to error: ", err)
-		}
 	}
 }

@@ -71,6 +71,7 @@ func PinHandler(conn *pgx.Conn) func(s *discordgo.Session, i *discordgo.Interact
 
 		// Get pinner
 		pinner := i.Member.User.ID
+
 		// Get date of message
 		matches := messageLinkRegex.FindStringSubmatch(messageLink)
 		channelID := matches[1]

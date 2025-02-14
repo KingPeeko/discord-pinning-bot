@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -25,14 +26,22 @@ func NewInteractionRespond(s *discordgo.Session, i *discordgo.Interaction, conte
 	}
 }
 
-func CreateEmbed(msg *discordgo.Message, link string, description string, pinner string) *discordgo.MessageEmbed {
+func CreateEmbed(s *discordgo.Session, msg *discordgo.Message, link string, description string, pinner string) (*discordgo.MessageEmbed, error) {
+	// Get username of pinner with their ID
+	pinnerMember, err := s.User(pinner)
+	if err != nil {
+		log.Println("Could not find find user in guild, using ID: ", pinner)
+		return nil, err
+	}
+	pinnerUsername := pinnerMember.Username
+
 	embed := &discordgo.MessageEmbed{
 		Title:       description,
 		Description: fmt.Sprintf("```%s```", msg.Content),
 		URL:         link,
 		Color:       0x5865F2,
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: fmt.Sprintf("Pinned by %s", pinner),
+			Text: fmt.Sprintf("Pinned by %s", pinnerUsername),
 		},
 		Timestamp: msg.Timestamp.Format("2006-01-02T15:04:05Z"),
 		/*Thumbnail: &discordgo.MessageEmbedThumbnail{
@@ -56,6 +65,5 @@ func CreateEmbed(msg *discordgo.Message, link string, description string, pinner
 		}
 	}
 
-	return embed
-
+	return embed, nil
 }
