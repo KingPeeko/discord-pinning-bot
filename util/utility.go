@@ -1,10 +1,13 @@
 package util
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/jackc/pgx/v5"
 )
 
 func HasAdminPermissions(i *discordgo.InteractionCreate) bool {
@@ -66,4 +69,54 @@ func CreateEmbed(s *discordgo.Session, msg *discordgo.Message, link string, desc
 	}
 
 	return embed, nil
+}
+
+func CheckAndCreatePinChannel(conn *pgx.Conn, s *discordgo.Session, g *discordgo.Guild) (string, error) {
+	var pinChannelID string
+
+	// Check if there is a row for pin channel id already
+	err := conn.QueryRow(context.Background(), "SELECT pin_channel FROM guilds WHERE guild = $1", g.ID).Scan(&pinChannelID)
+	if err == pgx.ErrNoRows {
+		// if no row, make new channel and add guild to database
+		channel, err := s.GuildChannelCreate(g.ID, "pinned-messages", discordgo.ChannelTypeGuildText)
+		if err != nil {
+			log.Println("Could not create pin channel: ", err)
+			return "", err
+		}
+
+		_, err = conn.Exec(context.Background(), "INSERT INTO guilds (guild, pin_channel, pin_count) VALUES ($1, $2, $3)", g.ID, channel.ID, 0)
+		if err != nil {
+			log.Println("Error inserting new pin channel into DB:", err)
+			return "", err
+		}
+
+		time.Sleep(2000 * time.Millisecond)
+
+		return channel.ID, nil
+	}
+
+	if err != nil {
+		log.Println("There was a database error: ", err)
+		return "", err
+	}
+
+	channel, err := s.Channel(pinChannelID)
+	if err == nil && channel.Type == discordgo.ChannelTypeGuildText {
+		return pinChannelID, nil
+	}
+
+	newChannel, err := s.GuildChannelCreate(g.ID, "pinned-messages", discordgo.ChannelTypeGuildText)
+	if err != nil {
+		log.Println("Could not create pin channel: ", err)
+		return "", err
+	}
+
+	time.Sleep(2000 * time.Millisecond)
+
+	_, err = conn.Exec(context.Background(), "UPDATE guilds SET pin_channel = $1 WHERE guild = $2", newChannel.ID, g.ID)
+	if err != nil {
+		log.Println("Error updating pin channel in DB:", err)
+		return "", err
+	}
+	return pinChannelID, nil
 }

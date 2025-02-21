@@ -13,14 +13,16 @@ var AllCommands = []*discordgo.ApplicationCommand{
 	commands.AllPinsCommand,
 	commands.RemovePinCommand,
 	commands.RandomPinCommand,
+	commands.RemoveAllPinsCommand,
 }
 
 // Command handler mapping
 func GetCommandHandlers(conn *pgx.Conn) map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	return map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
-		"pin":       commands.PinHandler(conn),
-		"allpins":   commands.AllPinsHandler(conn),
-		"removepin": commands.RemovePinHandler(conn),
-		"randompin": commands.RandomPinHandler(conn),
+		"pin":           commands.PinHandler(conn),
+		"allpins":       commands.AllPinsHandler(conn),
+		"removepin":     commands.RemovePinHandler(conn),
+		"randompin":     commands.RandomPinHandler(conn),
+		"removeallpins": commands.RemoveAllPinsHandler(conn),
 	}
 }

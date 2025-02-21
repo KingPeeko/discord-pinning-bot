@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"discord-pinning-bot/bot/commands"
 	"fmt"
 	"log"
 	"os"
@@ -22,7 +23,7 @@ func Run(conn *pgx.Conn) {
 		log.Fatal(err)
 	}
 
-	discord.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentMessageContent
+	discord.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentMessageContent
 
 	// Handler for all commands
 	commandHandlers := GetCommandHandlers(conn)
@@ -31,6 +32,12 @@ func Run(conn *pgx.Conn) {
 			if handler, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
 				handler(s, i)
 			}
+		},
+	)
+	discord.AddHandler(
+		func(s *discordgo.Session, g *discordgo.GuildCreate) {
+			fmt.Println("GuildCreate event !")
+			commands.JoinHandler(conn, s, g)
 		},
 	)
 

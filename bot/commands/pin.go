@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"discord-pinning-bot/util"
 	"fmt"
 	"log"
 	"regexp"
@@ -125,5 +126,38 @@ func PinHandler(conn *pgx.Conn) func(s *discordgo.Session, i *discordgo.Interact
 				Content: fmt.Sprintf("✅ Message pinned successfully! -> [%s](%s)", description, messageLink),
 			},
 		})
+
+		err = sendPinToPinChannel(s, guildID, conn, msg, messageLink, description, pinner)
+		if err != nil {
+			s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+				Content: ("❌ Failed to send pinned message to pin channel, but message was pinned"),
+				Flags:   discordgo.MessageFlagsEphemeral,
+			})
+		}
 	}
+}
+
+func sendPinToPinChannel(s *discordgo.Session, guildID string, conn *pgx.Conn, msg *discordgo.Message, messageLink string, description string, pinner string) error {
+	// Get guild from guildID
+	guild, err := s.Guild(guildID)
+	if err != nil {
+		log.Println("Could not retrieve guild from guildID", err)
+		return err
+	}
+
+	// Get pin channel
+	guildPinChannel, err := util.CheckAndCreatePinChannel(conn, s, guild)
+	if err != nil {
+		log.Println("Could not retrieve pin channel from guild", err)
+		return err
+	}
+
+	// Create embed for pinned message
+	embed, err := util.CreateEmbed(s, msg, messageLink, description, pinner)
+	if err != nil {
+		log.Println("Could not create embed from message", err)
+		return err
+	}
+	s.ChannelMessageSendEmbed(guildPinChannel, embed)
+	return nil
 }
